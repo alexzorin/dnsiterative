@@ -28,7 +28,32 @@ var (
 	ErrUnhandled     = errors.New("Unknown error")
 )
 
-func lookup(cl *dns.Client, name, server string, recType RecordType, toMatch ...string) (bool, error) {
+// A matcher will match if both the Type (A,CNAME) and Value match exactly
+// with the record returned by the DNS server
+type Matcher struct {
+	Type  RecordType
+	Value string
+}
+
+func (m *Matcher) matches(val dns.RR) bool {
+	switch m.Type {
+	case A:
+		if a, ok := val.(*dns.A); ok {
+			return a.A.String() == m.Value
+		} else {
+			return false
+		}
+	case CNAME:
+		if cn, ok := val.(*dns.CNAME); ok {
+			return cn.Target == m.Value
+		} else {
+			return false
+		}
+	}
+	return false
+}
+
+func lookup(cl *dns.Client, name, server string, matchers ...Matcher) (bool, error) {
 	msg := new(dns.Msg)
 	msg.Id = dns.Id()
 	msg.RecursionDesired = false
@@ -51,27 +76,14 @@ func lookup(cl *dns.Client, name, server string, recType RecordType, toMatch ...
 			if !ok {
 				return false, ErrUnhandled
 			}
-			return lookup(cl, name, fmt.Sprintf("%s:53", ns.Ns[0:len(ns.Ns)-1]), recType, toMatch...)
+			return lookup(cl, name, fmt.Sprintf("%s:53", ns.Ns[0:len(ns.Ns)-1]), matchers...)
 		}
 	} else {
-		for _, rr := range response.Answer {
-			if recType == A {
-				if a, ok := rr.(*dns.A); ok {
-					for _, m := range toMatch {
-						if m == a.A.String() {
-							return true, nil
-						}
-					}
+		for _, matcher := range matchers {
+			for _, rr := range response.Answer {
+				if matcher.matches(rr) {
+					return true, nil
 				}
-			} else if recType == CNAME {
-				if cn, ok := rr.(*dns.CNAME); ok {
-					for _, m := range toMatch {
-						if m == cn.Target {
-							return true, nil
-						}
-					}
-				}
-
 			}
 		}
 		return false, nil
@@ -79,15 +91,14 @@ func lookup(cl *dns.Client, name, server string, recType RecordType, toMatch ...
 }
 
 //
-// This will check if a DNS name has at least 1 record (of recType) that matches ones of the values within
-// `addressesToMatch`.
+// This will check if a DNS name has at least 1 record that meets the requirements outlined in `matchers`
 //
 // Take care to pass proper DNS names (i.e 'google.com.' not 'google.com') for both `name` and `addressesToMatch`.
 //
 // Will randomly select a root server from `DnsRoots` every time it runs, but will not retry failures.
 //
-func DomainHasRecord(name string, recType RecordType, addressesToMatch ...string) (bool, error) {
+func DomainHasRecord(name string, matchers ...Matcher) (bool, error) {
 	cl := new(dns.Client)
 	cl.Net = "tcp"
-	return lookup(cl, name, DnsRoots[rand.Intn(len(DnsRoots))], recType, addressesToMatch...)
+	return lookup(cl, name, DnsRoots[rand.Intn(len(DnsRoots))], matchers...)
 }

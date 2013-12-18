@@ -8,7 +8,7 @@ import (
 
 func TestLookupASuccess(t *testing.T) {
 	rand.Seed(time.Now().Unix())
-	hasRecord, err := DomainHasRecord("serversaurus.com.au.", A, "111.223.231.133")
+	hasRecord, err := DomainHasRecord("serversaurus.com.au.", Matcher{A, "111.223.231.133"}, Matcher{CNAME, "barney.serversaurus.com.au"})
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -20,7 +20,7 @@ func TestLookupASuccess(t *testing.T) {
 }
 
 func TestLookupAFail(t *testing.T) {
-	hasRecord, err := DomainHasRecord("google.com.", A, "1.2.3.4")
+	hasRecord, err := DomainHasRecord("google.com.", Matcher{A, "1.1.1.1"})
 	if err != nil {
 		t.Log(err)
 		t.Fail()
@@ -33,7 +33,7 @@ func TestLookupAFail(t *testing.T) {
 
 func TestLookupCNAMESuccess(t *testing.T) {
 	rand.Seed(time.Now().Unix())
-	hasRecord, err := DomainHasRecord("www.reddit.com.", CNAME, "reddit.com.edgesuite.net.")
+	hasRecord, err := DomainHasRecord("www.reddit.com.", Matcher{CNAME, "reddit.com.edgesuite.net."})
 	if err != nil {
 		t.Log(err)
 		t.Fail()
