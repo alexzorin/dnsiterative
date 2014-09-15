@@ -3,8 +3,9 @@ package dnsiterative
 import (
 	"errors"
 	"fmt"
-	"github.com/miekg/dns"
 	"math/rand"
+
+	"github.com/miekg/dns"
 )
 
 type RecordType string
@@ -99,6 +100,5 @@ func lookup(cl *dns.Client, name, server string, matchers ...Matcher) (bool, err
 //
 func DomainHasRecord(name string, matchers ...Matcher) (bool, error) {
 	cl := new(dns.Client)
-	cl.Net = "tcp"
 	return lookup(cl, name, DnsRoots[rand.Intn(len(DnsRoots))], matchers...)
 }
